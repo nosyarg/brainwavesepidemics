@@ -1,36 +1,35 @@
 import networkx as nx
 from random import *
 from bisect import *
-from heapq import *
 import matplotlib.pyplot as plt
-'''def inlist(a, x):
+debug = 0
+def inlist(a, x):
     i = bisect_left(a, x)
     if i != len(a) and a[i] == x:
         return 1
-    return 0'''
-#r = 4
-def checkinvariants(G,si,infected,removed,susceptible):
     return 0
-    for edge in si:
-        assert(G.nodes[edge[0]]['state'] == 's' or G.nodes[edge[1]]['state'] == 's')
-    for edge in si:
-        assert(G.nodes[edge[0]]['state'] == 's' or G.nodes[edge[1]]['state'] == 's')
-    for node in infected:
-        assert(G.nodes[node]['state'] == 'i')
-    for node in susceptible:
-        assert(G.nodes[node]['state'] == 's')
-    for node in removed:
-        assert(G.nodes[node]['state'] == 'r')
+def checkinvariants(G,si,infected,removed,susceptible):
+    if(debug):
+        for edge in si:
+            assert(G.nodes[edge[0]]['state'] == 's' or G.nodes[edge[1]]['state'] == 's')
+        for edge in si:
+            assert(G.nodes[edge[0]]['state'] == 's' or G.nodes[edge[1]]['state'] == 's')
+        for node in infected:
+            assert(G.nodes[node]['state'] == 'i')
+        for node in susceptible:
+            assert(G.nodes[node]['state'] == 's')
+        for node in removed:
+            assert(G.nodes[node]['state'] == 'r')
     
 removed = []
 #s = 15
 #n = s**2
-n = 100
+n = 5000
 mu = 1
 u = 100000
 p = mu/n
-lambd = 3/n
-rho = .3
+lambd = 3/n#infection rate
+rho = .05#resusceptible rate
 def dist(n1,n2):
     return ((n1['loc'][0]-n2['loc'][0])**2 + (n1['loc'][1]-n2['loc'][1])**2)**(1/2)
 def genlattice(s,mu,u):
@@ -52,8 +51,8 @@ def genlattice(s,mu,u):
                 if random() < edgeprob:
                     G.add_edge(n1,n2)
     return G
-
-while (len(removed)/n < .2):
+t = 0
+while (len(removed)/n < .2 or t < 100):
         counter = 0
         infected = []
         susceptible = []
@@ -76,41 +75,37 @@ while (len(removed)/n < .2):
                 G.nodes[j]['state'] = 's'
         firstinfected = int(n*random())
         G.nodes[firstinfected]['state'] = 'i'
-        infected = []
-        heappush(infected,firstinfected)
-        susceptiblelist = list(range(n))
-        susceptible = []
-        for num in susceptiblelist:
-            heappush(susceptible,num)
-        heappop(susceptible,firstinfected)
-        silist = sorted(list(G.edges(firstinfected)))
-        si = []
-        for num in silist:
-            heappush(si,num)
+        infected = [firstinfected]
+        #heappush(infected,firstinfected)
+        susceptible = sorted(list(range(n)))
+        #heappop(susceptible,firstinfected)
+        del susceptible[bisect_left(susceptible,firstinfected)]
+        si = sorted(list(G.edges(firstinfected)))
         while(len(infected) > 0): #do the modified contact process algorithm for disease spread
                 checkinvariants(G,si,infected,removed,susceptible)
-                if(counter % 10 == 0):
+                '''if(counter % 10 == 0):
                         mu = 0
                         for sus in susceptible:
-                                mu += G.degree(sus)/len(susceptible)
+                                mu += G.degree(sus)/len(susceptible)'''
                 counter += 1
                 if(random() < len(infected)/(len(infected)+(lambd)*len(si)+rho*len(removed))):#node event
                         todie = choice(infected)
-                        removed.append(todie)
+                        insort(removed,todie)
                         t += 1/(len(infected)+(lambd)*len(si) + rho*len(removed))
                         slist.append(len(susceptible))
                         ilist.append(len(infected))
                         rlist.append(len(removed))
                         tlist.append(t)
                         G.nodes[todie]['state'] = 'r'
-                        infected.remove(todie)
+                        del infected[bisect_left(infected,todie)]
                         for node in G.neighbors(todie):
-                                if(si.count((todie,node)) > 0):
-                                        si.remove((todie,node))
-                                if(si.count((node,todie)) > 0):
-                                        si.remove((node,todie))
-                        for edge in si:
-                            assert(G.nodes[edge[0]]['state'] == 's' or G.nodes[edge[1]]['state'] == 's')
+                                if(inlist(si,(todie,node))):
+                                        del si[bisect_left(si,(todie,node))]
+                                if(inlist(si,(node,todie))):
+                                        del si[bisect_left(si,(node,todie))]
+                        if(debug):
+                            for edge in si:
+                                assert(G.nodes[edge[0]]['state'] == 's' or G.nodes[edge[1]]['state'] == 's')
                 elif(random()<lambd*len(si)/(rho*len(removed)+lambd*len(si))): #infection edge event 
                         t += 1/(len(infected)+(lambd)*len(si)+rho*len(removed))
                         slist.append(len(susceptible))
@@ -122,30 +117,30 @@ while (len(removed)/n < .2):
                         if(G.nodes[cross[0]]['state']=='s'):
                                 checkinvariants(G,si,infected,removed,susceptible)
                                 G.nodes[cross[0]]['state'] = 'i'
-                                infected.append(cross[0])
-                                susceptible.remove(cross[0])
+                                insort(infected,cross[0])
+                                del susceptible[bisect_left(susceptible,cross[0])]
                                 for node in G.neighbors(cross[0]):#change si list
                                         if(G.nodes[node]['state']=='i'):
                                                 if(si.count((cross[0],node)) > 0):
-                                                        si.remove((cross[0],node))
+                                                    del si[bisect_left(si,(cross[0],node))]
                                                 if(si.count((node,cross[0])) > 0):
-                                                        si.remove((node,cross[0]))
+                                                    del si[bisect_left(si,(node,cross[0]))]
                                         if(G.nodes[node]['state']=='s'):
-                                                si.append((cross[0],node))
+                                                insort(si,(cross[0],node))
                                 checkinvariants(G,si,infected,removed,susceptible)
                         elif(G.nodes[cross[1]]['state']=='s'):
                                 checkinvariants(G,si,infected,removed,susceptible)
                                 G.nodes[cross[1]]['state'] = 'i'
-                                infected.append(cross[1])
-                                susceptible.remove(cross[1])
+                                insort(infected,cross[1])
+                                del susceptible[bisect_left(susceptible,cross[1])]
                                 for node in G.neighbors(cross[1]):#change si list
                                         if(G.nodes[node]['state']=='i'):
-                                                if(si.count((cross[1],node)) > 0):
-                                                        si.remove((cross[1],node))
-                                                if(si.count((node,cross[1])) > 0):
-                                                        si.remove((node,cross[1]))
+                                            if(inlist(si,(cross[1],node))):
+                                                del si[bisect_left(si,(cross[1],node))]
+                                            if(inlist(si,(node,cross[1]))):
+                                                del si[bisect_left(si,(node,cross[1]))]
                                         if(G.nodes[node]['state']=='s'):
-                                                si.append((cross[1],node))
+                                                insort(si,(cross[1],node))
                                 checkinvariants(G,si,infected,removed,susceptible)
                         else:
                             #print(G.nodes[cross[0]]['state'])
@@ -167,11 +162,11 @@ while (len(removed)/n < .2):
                         rlist.append(len(removed))
                         tlist.append(t)
                         G.nodes[todie]['state'] = 's'
-                        removed.remove(todie)
-                        susceptible.append(todie)
+                        del removed[bisect_left(removed,todie)]
+                        insort(susceptible,todie)
                         for node in G.neighbors(todie):
-                                if((si.count((todie,node)) == 0) and (si.count((node,todie)) == 0) and (G.nodes[node]['state'] == 'i')):
-                                        si.append((node,todie))
+                                if((not inlist(si, (todie,node))) and (not inlist(si,(node,todie))) and (G.nodes[node]['state'] == 'i')):
+                                        insort(si,(node,todie))
                         checkinvariants(G,si,infected,removed,susceptible)
                         #for edge in si:
                         #assert(G.nodes[edge[0]]['state'] == 's' or G.nodes[edge[1]]['state'] == 's')
@@ -180,7 +175,7 @@ while (len(removed)/n < .2):
                 checkinvariants(G,si,infected,removed,susceptible)
                 #for edge in si:
                 #    assert(G.nodes[edge[0]]['state'] == 's' or G.nodes[edge[1]]['state'] == 's')
-                if(counter %400000 == 0): 
+                if(t > 100): 
                     '''plt.plot(tlist,slist)
                     plt.plot(tlist,ilist)
                     plt.plot(tlist,rlist)
@@ -189,7 +184,7 @@ while (len(removed)/n < .2):
                     #plt.show(block = False)
         
         plt.cla()
-        plt.xlim(tlist[-1]/3,2*tlist[-1]/3)
+        #plt.xlim(tlist[-1]/3,2*tlist[-1]/3)
         plt.plot(tlist,slist, 'r')
         plt.plot(tlist,ilist, 'g')
         plt.plot(tlist,rlist, 'b')
