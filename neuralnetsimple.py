@@ -24,7 +24,7 @@ def checkinvariants(G,si,infected,removed,susceptible):
 removed = []
 #s = 15
 #n = s**2
-n = 5000
+n = 1000
 mu = 1
 u = 100000
 p = mu/n
