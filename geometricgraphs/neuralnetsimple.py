@@ -2,6 +2,8 @@ import networkx as nx
 from random import *
 from bisect import *
 import matplotlib.pyplot as plt
+import scipy
+from math import *
 debug = 0
 def inlist(a, x):
     i = bisect_left(a, x)
@@ -24,13 +26,13 @@ def checkinvariants(G,si,infected,removed,susceptible):
 removed = []
 #s = 15
 #n = s**2
-n = 100000
-mu = 2
+#lambd=3, rho =.11 is good
+n = 10000
+mu = 9
 u = 100000
-maxtime = 200
 p = mu/n
-lambd = 200#infection rate
-rho = .019#resusceptible rate
+lambd = 6#infection rate
+rho = .15#resusceptible rate
 def dist(n1,n2):
     return ((n1['loc'][0]-n2['loc'][0])**2 + (n1['loc'][1]-n2['loc'][1])**2)**(1/2)
 def genlattice(s,mu,u):
@@ -53,7 +55,7 @@ def genlattice(s,mu,u):
                     G.add_edge(n1,n2)
     return G
 t = 0
-while (len(removed)/n < .2 or t < maxtime):
+while (len(removed)/n < .2):
         counter = 0
         infected = []
         susceptible = []
@@ -61,12 +63,14 @@ while (len(removed)/n < .2 or t < maxtime):
         si = []
         #G = nx.fast_gnp_random_graph(n,p)#set up the er graph and infect patient 0
         #G = genlattice(s,mu,u)
-        G = nx.barabasi_albert_graph(n,mu)
+        #G = nx.barabasi_albert_graph(n,mu)
         #G = nx.complete_graph(n)
-        #plt.cla()
-        #nx.draw(G)
-        #plt.draw()
-        #plt.savefig('graph.png')
+        G = nx.random_geometric_graph(n,sqrt(mu/(n*pi)),dim=2)
+        print(G.number_of_edges())
+        plt.cla()
+        nx.draw(G)
+        plt.draw()
+        plt.savefig('graph.png')
         slist = []
         ilist = []
         rlist = []
@@ -82,7 +86,7 @@ while (len(removed)/n < .2 or t < maxtime):
         #heappop(susceptible,firstinfected)
         del susceptible[bisect_left(susceptible,firstinfected)]
         si = sorted(list(G.edges(firstinfected)))
-        while(len(infected) > 0): #do the modified contact process algorithm for disease spread
+        while((len(infected) > 0) and (t < 200)): #do the modified contact process algorithm for disease spread
                 checkinvariants(G,si,infected,removed,susceptible)
                 '''if(counter % 10 == 0):
                         mu = 0
@@ -176,7 +180,7 @@ while (len(removed)/n < .2 or t < maxtime):
                 checkinvariants(G,si,infected,removed,susceptible)
                 #for edge in si:
                 #    assert(G.nodes[edge[0]]['state'] == 's' or G.nodes[edge[1]]['state'] == 's')
-                if(t > maxtime): 
+                if(t > 400): 
                     '''plt.plot(tlist,slist)
                     plt.plot(tlist,ilist)
                     plt.plot(tlist,rlist)
@@ -185,7 +189,7 @@ while (len(removed)/n < .2 or t < maxtime):
                     #plt.show(block = False)
         
         plt.cla()
-        plt.xlim(tlist[-1]/3,2*tlist[-1]/3)
+        #plt.xlim(tlist[-1]/3,2*tlist[-1]/3)
         plt.plot(tlist,slist, 'r')
         plt.plot(tlist,ilist, 'g')
         plt.plot(tlist,rlist, 'b')
